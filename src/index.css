@@ -1,0 +1,106 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    @apply bg-[#0B0F17] text-slate-100 font-sans antialiased overflow-x-hidden;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #111827;
+}
+::-webkit-scrollbar-thumb {
+  background: #374151;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #4B5563;
+}
+
+/* 2.5D Parallax & Ken Burns Effect */
+@keyframes kenBurnsZoom {
+  0% { transform: scale(1) translate(0, 0); }
+  50% { transform: scale(1.08) translate(-1%, -1%); }
+  100% { transform: scale(1) translate(0, 0); }
+}
+
+@keyframes kenBurnsPan {
+  0% { transform: scale(1.05) translate(-2%, 0); }
+  100% { transform: scale(1.05) translate(2%, 0); }
+}
+
+.animate-ken-burns {
+  animation: kenBurnsZoom 12s ease-in-out infinite alternate;
+}
+
+.animate-ken-pan {
+  animation: kenBurnsPan 14s ease-in-out infinite alternate;
+}
+
+/* Realistic Highlighter Pen Effect */
+@keyframes markerHighlight {
+  0% { width: 0%; }
+  100% { width: 100%; }
+}
+
+.marker-highlight-yellow {
+  position: relative;
+  display: inline-block;
+  z-index: 1;
+}
+
+.marker-highlight-yellow::after {
+  content: '';
+  position: absolute;
+  left: -4px;
+  bottom: 2px;
+  height: 45%;
+  background: rgba(234, 179, 8, 0.45);
+  z-index: -1;
+  border-radius: 3px;
+  animation: markerHighlight 0.6s ease-out forwards;
+}
+
+.marker-highlight-red::after {
+  content: '';
+  position: absolute;
+  left: -4px;
+  bottom: 2px;
+  height: 45%;
+  background: rgba(239, 68, 68, 0.45);
+  z-index: -1;
+  border-radius: 3px;
+  animation: markerHighlight 0.6s ease-out forwards;
+}
+
+/* Film Grain Texture Overlay */
+.film-grain {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 0);
+  background-size: 24px 24px;
+}
+
+/* Paper Texture overlay */
+.paper-texture {
+  background-color: #16181f;
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* Kinetic Caption Bounce */
+@keyframes captionBounce {
+  0% { transform: scale(0.92); opacity: 0.6; }
+  60% { transform: scale(1.06); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.animate-caption-word {
+  display: inline-block;
+  animation: captionBounce 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
