@@ -20,6 +20,7 @@ export default function App() {
   const [isAutoSaving, setIsAutoSaving] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
+  const [audioUrl, setAudioUrl] = useState(null); // Actual Voice Audio URL for playback
 
   const debounceTimerRef = useRef(null);
 
@@ -31,8 +32,8 @@ export default function App() {
     const last = getLastProject();
     if (last && last.scenes && last.scenes.length > 0) {
       setProject(last);
+      if (last.audioUrl) setAudioUrl(last.audioUrl);
     } else {
-      // Initialize with our rich 4-layer sample story
       const sample = SAMPLE_STORIES[0];
       const initialProject = {
         id: 'proj_' + Date.now(),
@@ -41,7 +42,8 @@ export default function App() {
         updatedAt: new Date().toISOString(),
         transcript: sample.audioText,
         scenes: sample.scenes,
-        driveHookUrl: ''
+        driveHookUrl: '',
+        audioUrl: ''
       };
       saveProject(initialProject);
       setProject(initialProject);
@@ -175,6 +177,7 @@ export default function App() {
     const p = loadProject(projectId);
     if (p) {
       setProject(p);
+      setAudioUrl(p.audioUrl || null);
       setActiveSceneIndex(0);
     }
   };
@@ -182,6 +185,7 @@ export default function App() {
   const handleNewProject = () => {
     const newP = createNewProject(`রিল প্রজেক্ট #${projectsList.length + 1}`);
     setProject(newP);
+    setAudioUrl(null);
     setProjectsList(getProjectsList());
     setActiveSceneIndex(0);
   };
@@ -191,9 +195,19 @@ export default function App() {
     const updatedList = getProjectsList();
     setProjectsList(updatedList);
     if (updatedList.length > 0) {
-      setProject(loadProject(updatedList[0].id));
+      const p = loadProject(updatedList[0].id);
+      setProject(p);
+      setAudioUrl(p?.audioUrl || null);
     } else {
       handleNewProject();
+    }
+  };
+
+  // Update voice audio URL when uploaded/recorded
+  const handleSetAudioUrl = (url) => {
+    setAudioUrl(url);
+    if (project) {
+      triggerAutoSave({ ...project, audioUrl: url });
     }
   };
 
@@ -232,6 +246,7 @@ export default function App() {
               driveHookUrl={project.driveHookUrl || ''}
               onUpdateDriveUrl={(u) => triggerAutoSave({ ...project, driveHookUrl: u })}
               isGenerating={isGenerating}
+              onSetAudioUrl={handleSetAudioUrl}
             />
 
             <StoryboardEditor
@@ -262,6 +277,7 @@ export default function App() {
                 scenes={project.scenes || []}
                 currentSceneIndex={activeSceneIndex}
                 onSceneChange={(idx) => setActiveSceneIndex(idx)}
+                audioUrl={audioUrl}
               />
             </div>
           </div>
@@ -274,6 +290,7 @@ export default function App() {
         onClose={() => setIsExportOpen(false)}
         scenes={project.scenes || []}
         projectTitle={project.title}
+        audioUrl={audioUrl}
       />
 
       <SettingsModal

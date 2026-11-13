@@ -1,21 +1,39 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  Play, Pause, RotateCcw, Volume2, VolumeX, Radio
+  Play, Pause, RotateCcw, Volume2, VolumeX
 } from 'lucide-react';
 import { soundEffects } from '../services/audioSynthesizer';
 import SceneRenderer from './visuals/SceneRenderer';
 
-export default function ReelPreviewPlayer({ scenes, currentSceneIndex, onSceneChange }) {
+export default function ReelPreviewPlayer({ scenes, currentSceneIndex, onSceneChange, audioUrl }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
   const animationFrameRef = useRef(null);
   const lastTimeRef = useRef(null);
   const previousSceneIndexRef = useRef(null);
+  const audioElementRef = useRef(null);
 
   const totalDuration = scenes && scenes.length > 0
     ? scenes.reduce((acc, s) => acc + (s.duration || (s.endTime - s.startTime)), 0)
     : 10;
+
+  // Sync with real Audio Element if audioUrl exists
+  useEffect(() => {
+    if (audioElementRef.current) {
+      if (isPlaying) {
+        audioElementRef.current.play().catch(() => {});
+      } else {
+        audioElementRef.current.pause();
+      }
+    }
+  }, [isPlaying]);
+
+  useEffect(() => {
+    if (audioElementRef.current) {
+      audioElementRef.current.muted = isMuted;
+    }
+  }, [isMuted]);
 
   // Find active scene based on currentTime
   let accumulatedTime = 0;
@@ -52,6 +70,10 @@ export default function ReelPreviewPlayer({ scenes, currentSceneIndex, onSceneCh
         setCurrentTime((prev) => {
           if (prev + delta >= totalDuration) {
             setIsPlaying(false);
+            if (audioElementRef.current) {
+              audioElementRef.current.pause();
+              audioElementRef.current.currentTime = 0;
+            }
             return 0;
           }
           return prev + delta;
@@ -79,6 +101,9 @@ export default function ReelPreviewPlayer({ scenes, currentSceneIndex, onSceneCh
         t += scenes[i]?.duration || (scenes[i]?.endTime - scenes[i]?.startTime) || 0;
       }
       setCurrentTime(t + 0.1);
+      if (audioElementRef.current) {
+        audioElementRef.current.currentTime = t + 0.1;
+      }
     }
   }, [currentSceneIndex]);
 
@@ -90,6 +115,10 @@ export default function ReelPreviewPlayer({ scenes, currentSceneIndex, onSceneCh
   const handleReset = () => {
     setIsPlaying(false);
     setCurrentTime(0);
+    if (audioElementRef.current) {
+      audioElementRef.current.pause();
+      audioElementRef.current.currentTime = 0;
+    }
   };
 
   const formatTime = (secs) => {
@@ -106,7 +135,7 @@ export default function ReelPreviewPlayer({ scenes, currentSceneIndex, onSceneCh
     );
   }
 
-  // Calculate word-level highlighted captions
+  // Calculate word-level highlighted kinetic captions
   const words = (activeScene.caption || '').split(/\s+/).filter(Boolean);
   const sceneDuration = activeScene.duration || (activeScene.endTime - activeScene.startTime) || 5;
   const sceneStartTime = accumulatedTime - sceneDuration;
@@ -115,6 +144,16 @@ export default function ReelPreviewPlayer({ scenes, currentSceneIndex, onSceneCh
 
   return (
     <div className="flex flex-col items-center">
+      {/* Hidden Real Voice Audio Element */}
+      {audioUrl && (
+        <audio
+          ref={audioElementRef}
+          src={audioUrl}
+          preload="auto"
+          onEnded={() => setIsPlaying(false)}
+        />
+      )}
+
       {/* 9:16 Mobile Phone Frame */}
       <div className="relative w-full aspect-[9/16] max-w-[340px] bg-black rounded-[36px] overflow-hidden shadow-2xl border-4 border-gray-800/90 select-none group">
         
@@ -142,19 +181,19 @@ export default function ReelPreviewPlayer({ scenes, currentSceneIndex, onSceneCh
           </div>
         </div>
 
-        {/* Central Kinetic Captions (Word-by-word highlighted) */}
-        <div className="absolute bottom-14 inset-x-3 z-30 text-center pointer-events-none">
-          <div className="bg-black/80 backdrop-blur-md rounded-2xl p-3 border border-white/10 shadow-2xl">
-            <p className="text-sm sm:text-base font-extrabold font-bengali leading-relaxed text-white">
+        {/* Big Bold Kinetic Captions (Word-by-word Glowing Yellow Animation) */}
+        <div className="absolute bottom-16 inset-x-3 z-30 text-center pointer-events-none">
+          <div className="bg-black/85 backdrop-blur-md rounded-2xl p-3.5 border border-white/15 shadow-[0_10px_30px_rgba(0,0,0,0.8)]">
+            <p className="text-base sm:text-lg font-black font-bengali leading-relaxed text-white tracking-wide">
               {words.map((word, wIdx) => {
                 const isCurrentWord = wIdx === activeWordIndex;
                 return (
                   <span
                     key={wIdx}
-                    className={`inline-block mx-0.5 transition-all duration-150 ${
+                    className={`inline-block mx-1 transition-all duration-150 ${
                       isCurrentWord
-                        ? 'text-yellow-300 scale-105 drop-shadow-[0_2px_10px_rgba(253,224,71,0.8)] font-black'
-                        : 'text-gray-200'
+                        ? 'text-yellow-300 scale-125 font-black drop-shadow-[0_0_15px_rgba(253,224,71,0.9)] underline decoration-amber-400 decoration-2'
+                        : 'text-gray-300 opacity-90'
                     }`}
                   >
                     {word}
@@ -168,7 +207,7 @@ export default function ReelPreviewPlayer({ scenes, currentSceneIndex, onSceneCh
         {/* Timeline Progress Bar at bottom of reel */}
         <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-white/20 z-30">
           <div
-            className="h-full bg-gradient-to-r from-indigo-500 to-pink-500 transition-all duration-100"
+            className="h-full bg-gradient-to-r from-indigo-500 via-pink-500 to-amber-400 transition-all duration-100"
             style={{ width: `${(currentTime / totalDuration) * 100}%` }}
           />
         </div>
@@ -210,7 +249,11 @@ export default function ReelPreviewPlayer({ scenes, currentSceneIndex, onSceneCh
           step="0.1"
           value={currentTime}
           onChange={(e) => {
-            setCurrentTime(parseFloat(e.target.value));
+            const val = parseFloat(e.target.value);
+            setCurrentTime(val);
+            if (audioElementRef.current) {
+              audioElementRef.current.currentTime = val;
+            }
           }}
           className="w-32 sm:w-44 accent-indigo-500 cursor-pointer"
         />

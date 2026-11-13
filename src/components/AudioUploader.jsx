@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Upload, Mic, MicOff, Sparkles, Wand2, FileAudio, CheckCircle2, Link2, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
+import { Upload, Mic, MicOff, Sparkles, Wand2, FileAudio, Link2, ChevronDown, ChevronUp, Loader2, Play, Volume2 } from 'lucide-react';
 import { SAMPLE_STORIES } from '../constants/presets';
 import { transcribeAudio } from '../services/speechToText';
 import { getSettings } from '../services/storage';
@@ -10,7 +10,8 @@ export default function AudioUploader({
   onUpdateTranscript,
   driveHookUrl,
   onUpdateDriveUrl,
-  isGenerating
+  isGenerating,
+  onSetAudioUrl
 }) {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -29,8 +30,12 @@ export default function AudioUploader({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Create real blob audio URL for preview playback
+    const audioBlobUrl = URL.createObjectURL(file);
+    if (onSetAudioUrl) onSetAudioUrl(audioBlobUrl);
+
     setAudioFileName(file.name);
-    setTranscribeNotice('ভয়েস অডিও পড়া হচ্ছে...');
+    setTranscribeNotice('🎙️ আপনার ভয়েস অডিও পড়া হচ্ছে...');
     setIsTranscribing(true);
 
     const settings = getSettings();
@@ -38,13 +43,12 @@ export default function AudioUploader({
 
     setIsTranscribing(false);
     if (result.transcript) {
-      setTranscribeNotice('ভয়েস সফলভাবে ট্রান্সক্রাইব হয়েছে! রিল তৈরি হচ্ছে...');
+      setTranscribeNotice('✅ ভয়েস সফলভাবে ট্রান্সক্রাইব হয়েছে! সিন তৈরি হচ্ছে...');
       onUpdateTranscript(result.transcript);
       setShowScriptBox(true);
-      // Auto generate scenes immediately!
       onGenerateScenes(result.transcript);
     } else {
-      setTranscribeNotice(result.error || 'অডিও সনাক্ত করা গেছে। নিচের স্ক্রিপ্ট বক্সে টেক্সট দিতে পারেন।');
+      setTranscribeNotice(result.error || 'অডিও যুক্ত হয়েছে। নিচের স্ক্রিপ্ট বক্সে টেক্সট কনফার্ম করতে পারেন।');
       setShowScriptBox(true);
     }
   };
@@ -65,8 +69,11 @@ export default function AudioUploader({
         const recordName = `ভয়েস_${Date.now()}.webm`;
         setAudioFileName(recordName);
 
+        const recordUrl = URL.createObjectURL(audioBlob);
+        if (onSetAudioUrl) onSetAudioUrl(recordUrl);
+
         setIsTranscribing(true);
-        setTranscribeNotice('রেকর্ডকৃত ভয়েস বিশ্লেষণ করা হচ্ছে...');
+        setTranscribeNotice('🎙️ রেকর্ডকৃত ভয়েস বিশ্লেষণ করা হচ্ছে...');
         const settings = getSettings();
         const fileObj = new File([audioBlob], recordName, { type: 'audio/webm' });
         const result = await transcribeAudio(fileObj, settings?.geminiApiKey);
@@ -118,10 +125,10 @@ export default function AudioUploader({
         <div>
           <h2 className="text-lg font-bold text-white flex items-center gap-2 font-bengali">
             <FileAudio className="w-5 h-5 text-indigo-400" />
-            ১. ভয়েস আপলোড (ভয়েস-টু-রিল স্টুডিও)
+            ১. অরিজিনাল ভয়েস আপলোড
           </h2>
           <p className="text-xs text-gray-400 font-bengali mt-0.5">
-            শুধুমাত্র আপনার ভয়েস রেকর্ড বা ফাইল দিন — এআই নিজে শুনে স্টোরিবোর্ড ও রিল বানিয়ে দেবে
+            আপনার আসল ভয়েস আপলোড করুন — ভিডিও প্লে করার সময় আপনার কণ্ঠই লাউডস্পিকারে বাজবে
           </p>
         </div>
 
@@ -160,7 +167,7 @@ export default function AudioUploader({
             <p className="text-sm font-bold text-gray-200 font-bengali">
               {audioFileName ? audioFileName : 'এখানে ক্লিক করে আপনার ভয়েস অডিও ফাইল দিন'}
             </p>
-            <p className="text-xs text-gray-400 mt-1">MP3, WAV, M4A (১-৫ মিনিট)</p>
+            <p className="text-xs text-gray-400 mt-1">MP3, WAV, M4A, AAC (সর্বোচ্চ ৫ মিনিট)</p>
           </div>
 
           {/* Live Mic Recorder */}
@@ -171,7 +178,7 @@ export default function AudioUploader({
                 className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-sm text-gray-200 border border-gray-700 font-bengali transition"
               >
                 <Mic className="w-4 h-4 text-red-400" />
-                <span>সরাসরি মাইক্রোফোনে রেকর্ড করুন</span>
+                <span>সরাসরি মাইক্রোফোনে নিজের ভয়েস দিন</span>
               </button>
             ) : (
               <button
@@ -239,7 +246,7 @@ export default function AudioUploader({
       {/* Primary Action Button */}
       <div className="mt-5 pt-4 border-t border-gray-800/80 flex items-center justify-between">
         <p className="text-xs text-gray-400 font-bengali hidden sm:block">
-          ✨ ৪-লেয়ার ইঞ্জিন: অবতার এক্সপ্লেনার + সোনার/কোড মোশন + পেপার কোলাজ + ডাইনামিক সিন।
+          ✨ ৪-লেয়ার ইঞ্জিন: অবতার এক্সপ্লেনার + সোনার মোশন + পেপার কোলাজ + ডাইনামিক সিন।
         </p>
 
         <button
