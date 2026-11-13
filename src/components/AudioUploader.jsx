@@ -1,6 +1,8 @@
 import React, { useState, useRef } from 'react';
-import { Upload, Mic, MicOff, Sparkles, Wand2, FileAudio, Play, CheckCircle2, Link2 } from 'lucide-react';
+import { Upload, Mic, MicOff, Sparkles, Wand2, FileAudio, CheckCircle2, Link2, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import { SAMPLE_STORIES } from '../constants/presets';
+import { transcribeAudio } from '../services/speechToText';
+import { getSettings } from '../services/storage';
 
 export default function AudioUploader({
   onGenerateScenes,
@@ -13,23 +15,37 @@ export default function AudioUploader({
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [audioFileName, setAudioFileName] = useState('');
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [showScriptBox, setShowScriptBox] = useState(false);
+  const [transcribeNotice, setTranscribeNotice] = useState('');
+
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const timerRef = useRef(null);
   const fileInputRef = useRef(null);
 
-  // File Upload Handler
-  const handleFileUpload = (e) => {
+  // Auto Voice Upload & Auto-Transcription
+  const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setAudioFileName(file.name);
-      // Create local object URL for preview
-      const url = URL.createObjectURL(file);
-      
-      // Auto-extract or suggest sample transcript if empty
-      if (!currentTranscript) {
-        onUpdateTranscript('এ বছর বাংলাদেশের অর্থনীতিতে প্রায় দুই বিলিয়ন ডলারের ক্ষতি হয়েছে। গতকাল যে ব্যবসাগুলো সগৌরবে দাঁড়িয়ে ছিল, আজ তারা দেউলিয়ার পথে। এই বিশাল সংকটের আসল কারণ কী?');
-      }
+    if (!file) return;
+
+    setAudioFileName(file.name);
+    setTranscribeNotice('ভয়েস অডিও পড়া হচ্ছে...');
+    setIsTranscribing(true);
+
+    const settings = getSettings();
+    const result = await transcribeAudio(file, settings?.geminiApiKey);
+
+    setIsTranscribing(false);
+    if (result.transcript) {
+      setTranscribeNotice('ভয়েস সফলভাবে ট্রান্সক্রাইব হয়েছে! রিল তৈরি হচ্ছে...');
+      onUpdateTranscript(result.transcript);
+      setShowScriptBox(true);
+      // Auto generate scenes immediately!
+      onGenerateScenes(result.transcript);
+    } else {
+      setTranscribeNotice(result.error || 'অডিও সনাক্ত করা গেছে। নিচের স্ক্রিপ্ট বক্সে টেক্সট দিতে পারেন।');
+      setShowScriptBox(true);
     }
   };
 
@@ -41,16 +57,28 @@ export default function AudioUploader({
       audioChunksRef.current = [];
 
       mediaRecorderRef.current.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
+        if (event.data.size > 0) audioChunksRef.current.push(event.data);
       };
 
-      mediaRecorderRef.current.onstop = () => {
+      mediaRecorderRef.current.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        setAudioFileName(`রেকর্ডকৃত_ভয়েস_${Date.now()}.webm`);
-        if (!currentTranscript) {
-          onUpdateTranscript('মহাকাশচারীরা আজ অনন্ত মহাবিশ্ব ঘুরে বেরিয়ে মঙ্গল গ্রহে মানবজাতির বসবাসের স্বপ্ন দেখছে। পৃথিবী ছাড়িয়ে বহু দূর গ্যালাক্সিতে আমাদের দ্বিতীয় ঠিকানার সন্ধান শুরু হয়েছে।');
+        const recordName = `ভয়েস_${Date.now()}.webm`;
+        setAudioFileName(recordName);
+
+        setIsTranscribing(true);
+        setTranscribeNotice('রেকর্ডকৃত ভয়েস বিশ্লেষণ করা হচ্ছে...');
+        const settings = getSettings();
+        const fileObj = new File([audioBlob], recordName, { type: 'audio/webm' });
+        const result = await transcribeAudio(fileObj, settings?.geminiApiKey);
+        setIsTranscribing(false);
+
+        if (result.transcript) {
+          onUpdateTranscript(result.transcript);
+          setShowScriptBox(true);
+          onGenerateScenes(result.transcript);
+        } else {
+          setShowScriptBox(true);
+          setTranscribeNotice(result.error || 'ভয়েস সেভ হয়েছে। প্রয়োজনে স্ক্রিপ্ট বক্স দেখে নিতে পারেন।');
         }
       };
 
@@ -79,27 +107,26 @@ export default function AudioUploader({
   const loadSampleStory = (sample) => {
     onUpdateTranscript(sample.audioText);
     setAudioFileName(`${sample.title}.mp3`);
+    setShowScriptBox(true);
     onGenerateScenes(sample.audioText, sample.scenes);
   };
 
   return (
     <div className="bg-gray-900/70 border border-gray-800 rounded-2xl p-5 lg:p-6 shadow-xl">
+      {/* Header bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5 border-b border-gray-800/80 pb-4">
         <div>
           <h2 className="text-lg font-bold text-white flex items-center gap-2 font-bengali">
             <FileAudio className="w-5 h-5 text-indigo-400" />
-            ১. অডিও ও স্ক্রিপ্ট ইনপুট
+            ১. ভয়েস আপলোড (ভয়েস-টু-রিল স্টুডিও)
           </h2>
           <p className="text-xs text-gray-400 font-bengali mt-0.5">
-            আপনার ভয়েস ফাইল আপলোড করুন বা সরাসরি রেকর্ড করুন
+            শুধুমাত্র আপনার ভয়েস রেকর্ড বা ফাইল দিন — এআই নিজে শুনে স্টোরিবোর্ড ও রিল বানিয়ে দেবে
           </p>
         </div>
 
-        {/* 1-Click Demo Buttons */}
+        {/* 1-Click Demo Button */}
         <div className="flex items-center gap-2">
-          <span className="text-[11px] text-gray-400 font-bengali hidden md:inline">
-            দ্রুত ডেমো টেস্ট:
-          </span>
           {SAMPLE_STORIES.map((sample) => (
             <button
               key={sample.id}
@@ -107,12 +134,13 @@ export default function AudioUploader({
               className="text-xs px-2.5 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-indigo-300 border border-indigo-500/20 hover:border-indigo-500/40 font-bengali transition flex items-center gap-1.5"
             >
               <Sparkles className="w-3 h-3 text-indigo-400" />
-              {sample.title.slice(0, 16)}...
+              কৃষ্ণসাগর ডলফিন ডেমো
             </button>
           ))}
         </div>
       </div>
 
+      {/* Primary Voice Box */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Upload or Record Block */}
         <div className="flex flex-col gap-3">
@@ -126,13 +154,13 @@ export default function AudioUploader({
 
           <div
             onClick={() => fileInputRef.current?.click()}
-            className="border-2 border-dashed border-gray-700 hover:border-indigo-500/60 rounded-xl p-5 text-center cursor-pointer bg-gray-800/30 hover:bg-gray-800/60 transition flex flex-col items-center justify-center min-h-[130px]"
+            className="border-2 border-dashed border-indigo-500/40 hover:border-indigo-400 rounded-xl p-5 text-center cursor-pointer bg-indigo-950/20 hover:bg-indigo-950/40 transition flex flex-col items-center justify-center min-h-[140px] group"
           >
-            <Upload className="w-7 h-7 text-indigo-400 mb-2 animate-bounce-subtle" />
-            <p className="text-sm font-medium text-gray-200 font-bengali">
-              {audioFileName ? audioFileName : 'অডিও ফাইল এখানে ড্রপ বা সিলেক্ট করুন'}
+            <Upload className="w-8 h-8 text-indigo-400 mb-2 group-hover:scale-110 transition-transform" />
+            <p className="text-sm font-bold text-gray-200 font-bengali">
+              {audioFileName ? audioFileName : 'এখানে ক্লিক করে আপনার ভয়েস অডিও ফাইল দিন'}
             </p>
-            <p className="text-xs text-gray-400 mt-1">MP3, WAV, M4A, AAC (সর্বোচ্চ ৫ মিনিট)</p>
+            <p className="text-xs text-gray-400 mt-1">MP3, WAV, M4A (১-৫ মিনিট)</p>
           </div>
 
           {/* Live Mic Recorder */}
@@ -143,7 +171,7 @@ export default function AudioUploader({
                 className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-sm text-gray-200 border border-gray-700 font-bengali transition"
               >
                 <Mic className="w-4 h-4 text-red-400" />
-                <span>লাইভ ভয়েস রেকর্ড করুন</span>
+                <span>সরাসরি মাইক্রোফোনে রেকর্ড করুন</span>
               </button>
             ) : (
               <button
@@ -151,41 +179,59 @@ export default function AudioUploader({
                 className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-red-600/20 border border-red-500/40 text-sm text-red-300 font-bengali transition animate-pulse"
               >
                 <MicOff className="w-4 h-4 text-red-400" />
-                <span>রেকর্ডিং থামান ({recordingTime}s)</span>
+                <span>রেকর্ডিং সম্পন্ন ({recordingTime}s)</span>
               </button>
             )}
           </div>
         </div>
 
-        {/* Script & Google Drive Hook Settings */}
-        <div className="flex flex-col gap-3">
-          <div>
-            <label className="text-xs font-medium text-gray-300 font-bengali flex items-center justify-between mb-1.5">
-              <span>ভয়েসের বাংলা স্ক্রিপ্ট (Narration Text):</span>
-              <span className="text-[10px] text-gray-500">শব্দ সংখ্যা: {currentTranscript.split(/\s+/).filter(Boolean).length}</span>
-            </label>
-            <textarea
-              rows={4}
-              value={currentTranscript}
-              onChange={(e) => onUpdateTranscript(e.target.value)}
-              placeholder="আপনি ভয়েসে যা যা বলছেন এখানে লিখুন বা পেস্ট করুন... (যেমন: এ বছর বাংলাদেশের অর্থনীতিতে প্রায় দুই বিলিয়ন ডলার লস হয়েছে...)"
-              className="w-full bg-gray-800/90 border border-gray-700 rounded-xl p-3 text-sm text-white placeholder-gray-500 font-bengali focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition resize-none"
-            />
-          </div>
-
+        {/* Secondary: Drive URL & Optional Script Viewer */}
+        <div className="flex flex-col justify-between gap-3">
           {/* Drive Hook URL Field */}
           <div>
             <label className="text-xs font-medium text-gray-300 font-bengali flex items-center gap-1.5 mb-1.5">
               <Link2 className="w-3.5 h-3.5 text-indigo-400" />
-              <span>গুগল ড্রাইভ হুক ফুটেজ লিংক (প্রথম ৫-৭ সেকেন্ডের জন্য):</span>
+              <span>গুগল ড্রাইভ পার্সোনাল ফুটেজ লিংক (ঐচ্ছিক):</span>
             </label>
             <input
               type="text"
               value={driveHookUrl}
               onChange={(e) => onUpdateDriveUrl(e.target.value)}
-              placeholder="https://drive.google.com/file/d/your-video-id/view (ঐচ্ছিক)"
+              placeholder="https://drive.google.com/file/d/... (না থাকলে এভারটার কথা বলবে)"
               className="w-full bg-gray-800/90 border border-gray-700 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-500 font-sans focus:outline-none focus:border-indigo-500 transition"
             />
+          </div>
+
+          {/* Transcription Status Banner */}
+          {isTranscribing && (
+            <div className="p-3 bg-indigo-950/60 border border-indigo-500/30 rounded-xl flex items-center gap-2.5 text-xs text-indigo-200 font-bengali animate-pulse">
+              <Loader2 className="w-4 h-4 text-indigo-400 animate-spin" />
+              <span>{transcribeNotice || 'ভয়েস থেকে স্বয়ংক্রিয়ভাবে স্ক্রিপ্ট পড়া হচ্ছে...'}</span>
+            </div>
+          )}
+
+          {/* Toggle Optional Script Textarea */}
+          <div className="border border-gray-800 rounded-xl p-3 bg-gray-800/30">
+            <button
+              type="button"
+              onClick={() => setShowScriptBox(!showScriptBox)}
+              className="w-full flex items-center justify-between text-xs text-gray-300 font-bengali hover:text-white"
+            >
+              <span>স্ক্রিপ্ট টেক্সট দেখুন বা ম্যানুয়ালি এডিট করুন (ঐচ্ছিক)</span>
+              {showScriptBox ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            </button>
+
+            {showScriptBox && (
+              <div className="mt-2.5">
+                <textarea
+                  rows={3}
+                  value={currentTranscript}
+                  onChange={(e) => onUpdateTranscript(e.target.value)}
+                  placeholder="আপনার ভয়েসের কথাগুলো এখানে স্বয়ংক্রিয়ভাবে দেখাবে..."
+                  className="w-full bg-gray-900 border border-gray-700 rounded-lg p-2.5 text-xs text-white placeholder-gray-500 font-bengali focus:outline-none focus:border-indigo-500 resize-none"
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -193,16 +239,16 @@ export default function AudioUploader({
       {/* Primary Action Button */}
       <div className="mt-5 pt-4 border-t border-gray-800/80 flex items-center justify-between">
         <p className="text-xs text-gray-400 font-bengali hidden sm:block">
-          💡 টিপস: ভয়েসে সংখ্যা বা মহাকাশ বা চিকিৎসার কথা থাকলে সিস্টেম নিজে থেকে সঠিক দৃশ্য তৈরি করবে।
+          ✨ ৪-লেয়ার ইঞ্জিন: অবতার এক্সপ্লেনার + সোনার/কোড মোশন + পেপার কোলাজ + ডাইনামিক সিন।
         </p>
 
         <button
           onClick={() => onGenerateScenes(currentTranscript)}
-          disabled={!currentTranscript.trim() || isGenerating}
+          disabled={!currentTranscript.trim() || isGenerating || isTranscribing}
           className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-800 disabled:text-gray-500 text-white font-semibold text-sm shadow-lg shadow-indigo-600/25 transition active:scale-95 font-bengali"
         >
           <Wand2 className={`w-4 h-4 ${isGenerating ? 'animate-spin' : ''}`} />
-          <span>{isGenerating ? 'সিন বিশ্লেষণ চলছে...' : 'স্মার্ট স্টোরিবোর্ড সিন তৈরি করুন'}</span>
+          <span>{isGenerating ? '৪-লেয়ার রিল তৈরি হচ্ছে...' : 'ডাইনামিক রিল তৈরি করুন'}</span>
         </button>
       </div>
     </div>

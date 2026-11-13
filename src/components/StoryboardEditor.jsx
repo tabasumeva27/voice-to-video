@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { 
   Layers, Plus, Trash2, Volume2, MoveUp, MoveDown, 
-  Image as ImageIcon, Sparkles, Sliders, Type, Play
+  Image as ImageIcon, Sparkles, User, Activity, FileText, Film
 } from 'lucide-react';
 import { SCENE_TYPES, PRESET_VISUALS } from '../constants/presets';
 import { soundEffects } from '../services/audioSynthesizer';
+import SceneRenderer from './visuals/SceneRenderer';
 
 export default function StoryboardEditor({
   scenes,
@@ -25,7 +26,7 @@ export default function StoryboardEditor({
           এখনো কোনো সিন তৈরি করা হয়নি
         </h3>
         <p className="text-xs text-gray-500 font-bengali mt-1 max-w-md mx-auto">
-          উপরের বক্সে আপনার ভয়েসের স্ক্রিপ্ট দিয়ে "স্মার্ট স্টোরিবোর্ড সিন তৈরি করুন" বাটনে ক্লিক করুন অথবা ডেমো টেস্ট বাটন চাপুন।
+          উপরে আপনার ভয়েস ফাইল দিন বা ডেমো বাটনে ক্লিক করুন। সিস্টেম স্বয়ংক্রিয়ভাবে ৪-লেয়ার সিন বানাবে।
         </p>
       </div>
     );
@@ -40,10 +41,10 @@ export default function StoryboardEditor({
         <div>
           <h2 className="text-lg font-bold text-white flex items-center gap-2 font-bengali">
             <Layers className="w-5 h-5 text-indigo-400" />
-            ২. ক্যাপকাট-স্টাইল স্টোরিবোর্ড এডিটর
+            ২. ডাইনামিক স্টোরিবোর্ড এডিটর (৪-লেয়ার ইঞ্জিন)
           </h2>
           <p className="text-xs text-gray-400 font-bengali mt-0.5">
-            মোট দৃশ্য: {scenes.length} টি | মোট সময়কাল: {totalDuration} সেকেন্ড (অটো-সেভ হচ্ছে)
+            মোট দৃশ্য: {scenes.length} টি | মোট সময়কাল: {totalDuration} সেকেন্ড (অটো-সেভ সক্রিয়)
           </p>
         </div>
 
@@ -58,7 +59,8 @@ export default function StoryboardEditor({
       {/* Scene Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {scenes.map((scene, index) => {
-          const typeMeta = SCENE_TYPES[scene.type?.toUpperCase()] || SCENE_TYPES.DOCUMENTARY_CUTOUT;
+          const visualKey = (scene.visualType || scene.type || 'stock_visual').toUpperCase();
+          const typeMeta = SCENE_TYPES[visualKey] || SCENE_TYPES.STOCK_VISUAL;
           const isActive = index === activeSceneIndex;
 
           return (
@@ -125,20 +127,15 @@ export default function StoryboardEditor({
                 </div>
               </div>
 
-              {/* Scene Visual Preview & Type Badge */}
+              {/* Dynamic Visual Preview Box */}
               <div className="relative h-44 bg-gray-950 overflow-hidden group">
-                <img
-                  src={scene.imageUrl || PRESET_VISUALS.businessman}
-                  alt="Scene preview"
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                  style={{ transform: `scale(${scene.zoomScale || 1.08})` }}
-                />
+                <SceneRenderer scene={scene} isPlaying={false} progress={0.5} />
 
-                {/* Film grain and dark vignette */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+                {/* Dark bottom gradient */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none"></div>
 
                 {/* Type Badge */}
-                <div className="absolute top-2.5 left-2.5">
+                <div className="absolute top-2.5 left-2.5 z-10">
                   <span
                     className="text-[10px] font-semibold px-2.5 py-1 rounded-full text-white shadow-md font-bengali backdrop-blur-md"
                     style={{ backgroundColor: typeMeta.color + 'dd' }}
@@ -147,16 +144,16 @@ export default function StoryboardEditor({
                   </span>
                 </div>
 
-                {/* Change Image Button */}
+                {/* Change visual / image button */}
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     setEditingImageSceneId(editingImageSceneId === scene.id ? null : scene.id);
                   }}
-                  className="absolute bottom-2.5 right-2.5 px-2.5 py-1 rounded-lg bg-gray-900/80 hover:bg-black text-[11px] text-gray-200 border border-gray-700 backdrop-blur-md font-bengali flex items-center gap-1 transition"
+                  className="absolute bottom-2.5 right-2.5 z-10 px-2.5 py-1 rounded-lg bg-gray-900/80 hover:bg-black text-[11px] text-gray-200 border border-gray-700 backdrop-blur-md font-bengali flex items-center gap-1 transition"
                 >
                   <ImageIcon className="w-3 h-3 text-indigo-400" />
-                  <span>ছবি পরিবর্তন</span>
+                  <span>দৃশ্য পরিবর্তন</span>
                 </button>
               </div>
 
@@ -167,59 +164,67 @@ export default function StoryboardEditor({
                   className="p-3 bg-gray-950 border-b border-gray-800 text-xs space-y-2 animate-fadeIn"
                 >
                   <p className="text-[11px] font-medium text-gray-400 font-bengali">
-                    পছন্দের ছবি সিলেক্ট করুন বা লিংক দিন:
+                    পছন্দের ছবি নির্বাচন করুন:
                   </p>
-                  <div className="grid grid-cols-4 gap-1.5">
+                  <div className="grid grid-cols-3 gap-1.5">
                     {Object.entries(PRESET_VISUALS).map(([key, url]) => (
                       <img
                         key={key}
                         src={url}
                         alt={key}
                         onClick={() => {
-                          onUpdateScene(index, { imageUrl: url });
+                          onUpdateScene(index, { imageUrl: url, visualType: 'stock_visual' });
                           setEditingImageSceneId(null);
                         }}
                         className="w-full h-12 object-cover rounded cursor-pointer border border-gray-700 hover:border-indigo-400 transition hover:scale-105"
                       />
                     ))}
                   </div>
-                  <input
-                    type="text"
-                    placeholder="অথবা সরাসরি ছবির URL পেস্ট করুন..."
-                    value={scene.imageUrl || ''}
-                    onChange={(e) => onUpdateScene(index, { imageUrl: e.target.value })}
-                    className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-white"
-                  />
                 </div>
               )}
 
               {/* Scene Settings Controls */}
               <div className="p-3.5 space-y-3">
-                {/* Scene Type Selector */}
+                {/* Scene Visual Type Selector */}
                 <div>
                   <label className="text-[10px] uppercase font-bold text-gray-400 tracking-wider font-bengali block mb-1">
                     দৃশ্যের ধরণ (Visual Mode):
                   </label>
                   <select
-                    value={scene.type}
+                    value={scene.visualType || scene.type || 'stock_visual'}
                     onChange={(e) => {
                       const newType = e.target.value;
-                      let newImg = scene.imageUrl;
-                      if (newType === 'financial_loss') newImg = PRESET_VISUALS.economy_chart;
-                      if (newType === 'space_exploration') newImg = PRESET_VISUALS.space_bg;
-                      if (newType === 'news_headline') newImg = PRESET_VISUALS.newspaper;
-                      if (newType === 'medical_crisis') newImg = PRESET_VISUALS.hospital;
-                      onUpdateScene(index, { type: newType, imageUrl: newImg });
+                      onUpdateScene(index, { visualType: newType });
                     }}
                     className="w-full bg-gray-800/90 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-bengali focus:outline-none focus:border-indigo-500"
                   >
-                    {Object.values(SCENE_TYPES).map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name}
-                      </option>
-                    ))}
+                    <option value="avatar_explainer">🎙️ অবতার এক্সপ্লেনার (SVG Avatar)</option>
+                    <option value="procedural_motion">⚡ কোড-মোশন (Sonar/Chart/Counter)</option>
+                    <option value="paper_collage">📰 নিউজপেপার ও মার্কার হাইলাইট</option>
+                    <option value="stock_visual">🖼️ প্রাসঙ্গিক ডাইনামিক সিন</option>
+                    <option value="personal_hook">👤 ব্যক্তিগত হুক ফুটেজ</option>
                   </select>
                 </div>
+
+                {/* Sub-type for procedural motion */}
+                {(scene.visualType === 'procedural_motion') && (
+                  <div>
+                    <label className="text-[10px] uppercase font-bold text-cyan-400 tracking-wider font-bengali block mb-1">
+                      মোশন ধরণ (Motion Pattern):
+                    </label>
+                    <select
+                      value={scene.motionType || 'sonar'}
+                      onChange={(e) => onUpdateScene(index, { motionType: e.target.value })}
+                      className="w-full bg-cyan-950/40 border border-cyan-800 rounded-lg px-2.5 py-1 text-xs text-cyan-200 font-sans"
+                    >
+                      <option value="sonar">Sonar Radar (সাবমেরিন/মিলিটারি তরঙ্গ)</option>
+                      <option value="waves">Ocean Acoustic Waves (সমুদ্রের ঢেউ)</option>
+                      <option value="counter">Rapid Statistical Counter (সংখ্যা গণনা)</option>
+                      <option value="chart">Downward Loss Chart (অর্থনৈতিক ধস)</option>
+                      <option value="heartbeat">ECG Heartbeat Pulse (সংকট)</option>
+                    </select>
+                  </div>
+                )}
 
                 {/* Caption Text Field */}
                 <div>
@@ -244,7 +249,7 @@ export default function StoryboardEditor({
                       type="text"
                       value={scene.highlightText || ''}
                       onChange={(e) => onUpdateScene(index, { highlightText: e.target.value })}
-                      placeholder="যেমন: ২ বিলিয়ন ডলার"
+                      placeholder="যেমন: ১,২০,০০০ ডলফিন"
                       className="w-full bg-gray-800/90 border border-gray-700 rounded-lg px-2 py-1 text-xs text-white font-bengali focus:outline-none focus:border-indigo-500"
                     />
                   </div>
@@ -273,9 +278,9 @@ export default function StoryboardEditor({
                       className="w-full bg-gray-800/90 border border-gray-700 rounded-lg px-2 py-1 text-xs text-white font-sans focus:outline-none focus:border-indigo-500"
                     >
                       <option value="whoosh">Whoosh (সুইশ)</option>
-                      <option value="cash">Cash (টাকা/কয়েন)</option>
-                      <option value="boom">Boom (নাটকীয় ড্রাম)</option>
+                      <option value="boom">Boom (ড্রাম/যুদ্ধ)</option>
                       <option value="camera">Camera (শাটার ক্লিক)</option>
+                      <option value="cash">Cash (টাকা/কয়েন)</option>
                       <option value="pop">Pop (বাউন্স)</option>
                     </select>
                   </div>

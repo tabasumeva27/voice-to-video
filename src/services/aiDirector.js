@@ -1,8 +1,13 @@
-// AI Director Engine: Converts Speech Transcript into Structured Visual Storyboard
+// AI Director Engine: Converts Bengali Voice Transcript into High-Retention 4-Layer Documentary Reels
 import { PRESET_VISUALS } from '../constants/presets';
 
 /**
- * Intelligent Bengali Semantic Parser (Works 100% offline & free)
+ * Intelligent 4-Layer Dynamic Bengali Semantic Parser
+ * Dynamically assigns:
+ * 1. avatar_explainer (Explainer speaker)
+ * 2. procedural_motion (Sonar waves, Counters, Charts, Heartbeat)
+ * 3. paper_collage (Newspaper/Report with marker highlight)
+ * 4. stock_visual (Accurate contextual images, NOT static repeats)
  */
 export function parseTranscriptRuleBased(transcriptText, totalDuration = 0, driveHookUrl = '') {
   if (!transcriptText || transcriptText.trim() === '') {
@@ -17,7 +22,6 @@ export function parseTranscriptRuleBased(transcriptText, totalDuration = 0, driv
 
   if (sentences.length === 0) return [];
 
-  // Calculate rough duration per sentence
   const avgDurationPerSentence = Math.max(
     4,
     totalDuration > 0 ? Math.floor(totalDuration / sentences.length) : 5
@@ -25,6 +29,9 @@ export function parseTranscriptRuleBased(transcriptText, totalDuration = 0, driv
 
   let currentTime = 0;
   const scenes = [];
+
+  // 4-Layer sequence cycler to ensure balanced visual distribution
+  const LAYER_CYCLE = ['avatar_explainer', 'stock_visual', 'procedural_motion', 'paper_collage'];
 
   sentences.forEach((sentence, idx) => {
     const sceneDuration = Math.min(
@@ -37,95 +44,109 @@ export function parseTranscriptRuleBased(transcriptText, totalDuration = 0, driv
 
     const lower = sentence.toLowerCase();
 
-    // Scene Classification
-    let type = 'documentary_cutout';
-    let highlightText = '';
+    // Default layer assignment based on cycle to avoid repetitive visuals
+    let visualType = LAYER_CYCLE[idx % LAYER_CYCLE.length];
+    let motionType = 'particles';
     let soundFx = 'whoosh';
-    let imageUrl = PRESET_VISUALS.businessman;
-    let headline = sentence.slice(0, 36) + '...';
+    let highlightText = sentence.split(' ').slice(0, 3).join(' ');
+    let headline = sentence.slice(0, 40) + '...';
+    let imageUrl = '';
+    let searchQuery = '';
 
-    // Hook Scene: Always dedicate the very first 5-7 seconds to User's Personal Face
+    // First scene: Hook (Drive footage if provided, otherwise Avatar explainer)
     if (idx === 0) {
-      type = 'personal_face';
-      highlightText = sentence.split(' ').slice(0, 3).join(' ');
+      visualType = driveHookUrl ? 'personal_hook' : 'avatar_explainer';
+      headline = 'আজকের বিশেষ অনুসন্ধান';
       soundFx = 'whoosh';
-      imageUrl = driveHookUrl || PRESET_VISUALS.businessman;
-      headline = 'আজকের বিশেষ বিশ্লেষণ';
-    } 
-    // Financial / Loss / Numbers Detection
+    }
+    // Submarines / Sonar / Military / Warships / Waves
     else if (
-      lower.includes('বিলিয়ন') ||
+      lower.includes('সাবমেরিন') ||
+      lower.includes('শব্দতরঙ্গ') ||
+      lower.includes('মাইন') ||
+      lower.includes('জাহাজ') ||
+      lower.includes('যুদ্ধজাহাজ') ||
+      lower.includes('তরঙ্গ')
+    ) {
+      visualType = 'procedural_motion';
+      motionType = 'sonar';
+      soundFx = 'boom';
+      highlightText = 'তীব্র শব্দতরঙ্গ ও সোনার';
+      headline = 'সামরিক সাবমেরিনের শব্দতরঙ্গ';
+    }
+    // Marine Life / Dolphins / Sea / Ocean
+    else if (
+      lower.includes('ডলফিন') ||
+      lower.includes('কৃষ্ণসাগর') ||
+      lower.includes('সমুদ্র') ||
+      lower.includes('সাগর') ||
+      lower.includes('প্রাণী') ||
+      lower.includes('মাছ')
+    ) {
+      visualType = 'stock_visual';
+      imageUrl = PRESET_VISUALS.dolphin;
+      searchQuery = 'dolphin swimming ocean water';
+      motionType = 'waves';
+      soundFx = 'whoosh';
+      highlightText = 'সমুদ্রের অবোলা প্রাণী';
+      headline = 'কৃষ্ণসাগরের বিপন্ন সামুদ্রিক জীব';
+    }
+    // Statistics / Numbers / Large death count or financial figures
+    else if (
+      lower.includes('লাখ') ||
+      lower.includes('হাজার') ||
       lower.includes('কোটি') ||
-      lower.includes('ডলার') ||
-      lower.includes('টাকা') ||
+      lower.includes('বিলিয়ন') ||
+      lower.includes('মারা') ||
+      lower.includes('সংখ্যা')
+    ) {
+      visualType = 'procedural_motion';
+      motionType = 'counter';
+      soundFx = 'camera';
+      highlightText = extractNumberHighlight(sentence) || 'বিশাল পরিসংখ্যান';
+      headline = 'নজিরবিহীন পরিসংখ্যান ও তথ্য';
+    }
+    // Financial / Crash / Loss / Money
+    else if (
       lower.includes('ক্ষতি') ||
       lower.includes('লস') ||
-      lower.includes('দেউলিয়া') ||
-      lower.includes('ব্যাংক') ||
-      lower.includes('অর্থনীতি')
+      lower.includes('টাকা') ||
+      lower.includes('ডলার') ||
+      lower.includes('অর্থনীতি') ||
+      lower.includes('দেউলিয়া')
     ) {
-      type = 'financial_loss';
-      highlightText = extractFinancialHighlight(sentence) || 'বিশাল অর্থনৈতিক ধাক্কা';
+      visualType = 'procedural_motion';
+      motionType = 'chart';
       soundFx = 'cash';
-      imageUrl = PRESET_VISUALS.economy_chart;
+      highlightText = 'অর্থনৈতিক ধস';
       headline = 'আর্থিক পতনের বিশেষ রিপোর্ট';
-    } 
-    // Space / Science / Mars Detection
+    }
+    // Report / Document / Law / Court / Investigation
     else if (
-      lower.includes('মহাকাশ') ||
-      lower.includes('মঙ্গল') ||
-      lower.includes('গ্রহ') ||
-      lower.includes('চাঁদ') ||
-      lower.includes('গ্যালাক্সি') ||
-      lower.includes('নক্ষত্র') ||
-      lower.includes('রকেট') ||
-      lower.includes('বিজ্ঞান')
-    ) {
-      type = 'space_exploration';
-      highlightText = 'মহাকাশে নতুন দিগন্ত';
-      soundFx = 'boom';
-      imageUrl = PRESET_VISUALS.space_bg;
-      headline = 'মিশন মার্স ও অনন্ত মহাবিশ্ব';
-    } 
-    // Medical / Illness / Sudden Crisis Detection
-    else if (
-      lower.includes('অসুস্থ') ||
-      lower.includes('হাসপাতাল') ||
-      lower.includes('রোগ') ||
-      lower.includes('ডাক্তার') ||
-      lower.includes('চিকিৎসা') ||
-      lower.includes('জীবিত') ||
-      lower.includes('হঠাৎ') ||
-      lower.includes('মৃত্যু')
-    ) {
-      type = 'medical_crisis';
-      highlightText = 'অপ্রত্যাশিত শারীরিক সংকট';
-      soundFx = 'pop';
-      imageUrl = PRESET_VISUALS.hospital;
-      headline = 'মানব জীবনের চরম বাস্তব সত্য';
-    } 
-    // News / Documents / Reports Detection
-    else if (
-      lower.includes('সংবাদ') ||
       lower.includes('রিপোর্ট') ||
-      lower.includes('খবর') ||
-      lower.includes('আদালত') ||
-      lower.includes('পুলিশ') ||
-      lower.includes('নোটিশ') ||
-      lower.includes('প্রকাশ') ||
-      lower.includes('গণমাধ্যম')
+      lower.includes('সংবাদ') ||
+      lower.includes('তথ্য') ||
+      lower.includes('বিজ্ঞান') ||
+      lower.includes('গবেষণা') ||
+      lower.includes('প্রমাণ')
     ) {
-      type = 'news_headline';
-      highlightText = 'বিশেষ সংবাদ প্রতিবেদন';
+      visualType = 'paper_collage';
       soundFx = 'camera';
-      imageUrl = PRESET_VISUALS.newspaper;
-      headline = 'শীর্ষ সংবাদে আলোড়ন সৃষ্টিকারী ঘটনা';
-    } else {
-      type = 'documentary_cutout';
-      highlightText = sentence.split(' ').slice(0, 2).join(' ');
+      highlightText = 'বিশেষ অনুসন্ধান রিপোর্ট';
+      headline = 'আন্তর্জাতিক গবেষকদের প্রামাণ্য দলিল';
+    }
+    // Human superiority / Philosophy / Introspection
+    else if (
+      lower.includes('আশরাফুল') ||
+      lower.includes('মাখলুকাত') ||
+      lower.includes('শ্রেষ্ঠ') ||
+      lower.includes('মানুষ') ||
+      lower.includes('গর্ব')
+    ) {
+      visualType = 'avatar_explainer';
       soundFx = 'whoosh';
-      imageUrl = PRESET_VISUALS.bangladesh_city;
-      headline = 'বাস্তব জীবনের প্রামাণ্য চিত্র';
+      highlightText = 'মানুষ ও শ্রেষ্ঠত্বের প্রশ্ন';
+      headline = 'আমরা কি সত্যিই সৃষ্টির সেরা জীব?';
     }
 
     scenes.push({
@@ -133,13 +154,16 @@ export function parseTranscriptRuleBased(transcriptText, totalDuration = 0, driv
       startTime,
       endTime,
       duration: sceneDuration,
-      type,
+      visualType,
+      motionType,
       caption: sentence,
       headline,
       highlightText,
       soundFx,
       zoomScale: 1.08 + (idx % 3) * 0.05,
-      imageUrl
+      imageUrl: imageUrl || PRESET_VISUALS.ocean,
+      searchQuery: searchQuery || sentence.slice(0, 20),
+      driveVideoUrl: visualType === 'personal_hook' ? driveHookUrl : ''
     });
   });
 
@@ -147,12 +171,12 @@ export function parseTranscriptRuleBased(transcriptText, totalDuration = 0, driv
 }
 
 // Extract specific numbers/amounts from Bengali sentences
-function extractFinancialHighlight(sentence) {
-  const match = sentence.match(/(\d+|দুই|তিন|চার|পাঁচ|শত|হাজার|লক্ষ|কোটি|বিলিয়ন)\s*(বিলিয়ন|কোটি|টাকা|ডলার|লস|ক্ষতি)/i);
+function extractNumberHighlight(sentence) {
+  const match = sentence.match(/(\d+|এক|দুই|তিন|চার|পাঁচ|শত|হাজার|লাখ|কোটি|বিলিয়ন)\s*(লাখ|হাজার|কোটি|বিলিয়ন|টাকা|ডলার|ডলফিন|মৃত)/i);
   if (match) {
     return match[0];
   }
-  return 'আর্থিক সংকট ও দেনা';
+  return '';
 }
 
 /**
@@ -163,22 +187,29 @@ export async function generateScenesWithGemini(transcriptText, apiKey, driveHook
     return parseTranscriptRuleBased(transcriptText, 0, driveHookUrl);
   }
 
-  const prompt = `You are an expert documentary video director (in the style of Vox, Johnny Harris, MagnatesMedia, and popular Bangladeshi creator Abdullah).
-Analyze this narration script (in Bengali) and break it into a sequence of high-retention 9:16 vertical reel scenes.
+  const prompt = `You are an expert 9:16 documentary reel director (like Vox, Johnny Harris, Abdullah).
+Analyze this Bengali narration script and produce a JSON array of scenes adhering to our 4-layer ratio:
+- avatar_explainer: 25% (speaking character)
+- procedural_motion: 25% (sonar waves, counters, charts, heartbeat)
+- paper_collage: 25% (newspaper report with yellow marker highlight)
+- stock_visual: 25% (contextual cinematic visual)
+
 Rules:
-1. Scene 1 (0 to 5-7 seconds) MUST be 'personal_face' for the creator's talking hook.
-2. For financial loss/numbers, use 'financial_loss'.
-3. For space/future/mars, use 'space_exploration'.
-4. For sudden sickness/hospital, use 'medical_crisis'.
-5. For documents/news/court, use 'news_headline'.
-6. For other scenes, use 'documentary_cutout'.
-7. Output valid JSON array with keys: startTime, endTime, type, caption (Bengali), headline (Bengali), highlightText (Bengali), soundFx ('whoosh'|'cash'|'boom'|'camera'|'pop').
+1. Scene 1 should always be 'avatar_explainer' or 'personal_hook'.
+2. Avoid consecutive scenes with the same visualType.
+3. For scenes with military/submarines, set motionType to 'sonar'.
+4. For large numbers or death counts, set motionType to 'counter'.
+5. For financial loss, set motionType to 'chart'.
+6. For ocean/disruption, set motionType to 'waves'.
+
+Output strictly a JSON array with objects containing:
+startTime (number), endTime (number), duration (number), visualType (string), motionType (string), caption (Bengali text), headline (Bengali text), highlightText (Bengali text), soundFx ('whoosh'|'boom'|'camera'|'cash'|'pop'), searchQuery (English keywords).
 
 Script:
 """
 ${transcriptText}
 """
-Respond with ONLY the JSON array, no markdown fences or other text.`;
+Output ONLY valid JSON.`;
 
   try {
     const response = await fetch(
@@ -197,25 +228,23 @@ Respond with ONLY the JSON array, no markdown fences or other text.`;
     );
 
     if (!response.ok) {
-      console.warn('Gemini API call failed, falling back to local semantic engine');
       return parseTranscriptRuleBased(transcriptText, 0, driveHookUrl);
     }
 
     const data = await response.json();
     const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!rawText) {
-      return parseTranscriptRuleBased(transcriptText, 0, driveHookUrl);
-    }
+    if (!rawText) return parseTranscriptRuleBased(transcriptText, 0, driveHookUrl);
 
     const parsed = JSON.parse(rawText);
     return parsed.map((item, idx) => ({
       ...item,
       id: `gemini_scene_${idx}_${Date.now()}`,
-      imageUrl: item.type === 'personal_face' && driveHookUrl ? driveHookUrl : (PRESET_VISUALS[item.type] || PRESET_VISUALS.businessman),
-      zoomScale: 1.08 + (idx % 3) * 0.05
+      zoomScale: 1.08 + (idx % 3) * 0.05,
+      imageUrl: PRESET_VISUALS.ocean,
+      driveVideoUrl: item.visualType === 'personal_hook' ? driveHookUrl : ''
     }));
-  } catch (error) {
-    console.error('Error invoking Gemini, using local engine:', error);
+  } catch (err) {
+    console.error('Error invoking Gemini, using local engine:', err);
     return parseTranscriptRuleBased(transcriptText, 0, driveHookUrl);
   }
 }

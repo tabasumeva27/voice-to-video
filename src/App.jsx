@@ -32,7 +32,7 @@ export default function App() {
     if (last && last.scenes && last.scenes.length > 0) {
       setProject(last);
     } else {
-      // Initialize with our first rich sample story
+      // Initialize with our rich 4-layer sample story
       const sample = SAMPLE_STORIES[0];
       const initialProject = {
         id: 'proj_' + Date.now(),
@@ -63,7 +63,7 @@ export default function App() {
     }, 600);
   };
 
-  // Generate Scenes from Narration
+  // Generate 4-Layer Dynamic Scenes from Narration
   const handleGenerateScenes = async (transcript, overrideScenes = null) => {
     if (overrideScenes) {
       const updated = {
@@ -81,7 +81,7 @@ export default function App() {
 
     try {
       let scenes;
-      if (settings.geminiApiKey) {
+      if (settings?.geminiApiKey) {
         scenes = await generateScenesWithGemini(
           transcript,
           settings.geminiApiKey,
@@ -129,13 +129,14 @@ export default function App() {
       startTime,
       endTime,
       duration: 5,
-      type: 'documentary_cutout',
-      caption: 'নতুন দৃশ্যের ক্যাপশন লিখুন...',
-      headline: 'নতুন অধ্যায়',
-      highlightText: 'মূল পয়েন্ট',
+      visualType: 'avatar_explainer',
+      motionType: 'particles',
+      caption: 'নতুন অধ্যায়ের ক্যাপশন...',
+      headline: 'নতুন বিষয়বস্তু',
+      highlightText: 'মূল পয়েন্ট',
       soundFx: 'whoosh',
       zoomScale: 1.1,
-      imageUrl: PRESET_VISUALS.businessman
+      imageUrl: PRESET_VISUALS.ocean
     };
 
     triggerAutoSave({ ...project, scenes: [...currentScenes, newScene] });
@@ -156,7 +157,6 @@ export default function App() {
     const [moved] = newScenes.splice(fromIndex, 1);
     newScenes.splice(toIndex, 0, moved);
 
-    // Recalculate start/end timestamps sequentially
     let curr = 0;
     const sequential = newScenes.map((s) => {
       const d = s.duration || s.endTime - s.startTime || 5;
@@ -223,7 +223,7 @@ export default function App() {
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
-          {/* Left Column: Audio Input & Storyboard Deck (8 cols) */}
+          {/* Left Column: Audio Input & Storyboard Deck */}
           <div className="lg:col-span-7 xl:col-span-8 flex flex-col gap-6">
             <AudioUploader
               onGenerateScenes={handleGenerateScenes}
@@ -245,12 +245,12 @@ export default function App() {
             />
           </div>
 
-          {/* Right Column: Sticky 9:16 Reel Preview Canvas (5 cols) */}
+          {/* Right Column: Sticky 9:16 Reel Preview Canvas */}
           <div className="lg:col-span-5 xl:col-span-4 sticky top-24 flex flex-col items-center">
             <div className="w-full bg-gray-900/80 border border-gray-800 rounded-3xl p-5 shadow-2xl backdrop-blur-md">
               <div className="flex items-center justify-between mb-4 border-b border-gray-800 pb-3">
                 <span className="text-sm font-bold text-white font-bengali flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-indigo-500"></span>
+                  <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse"></span>
                   ৩. লাইভ রিল প্রিভিউ (৯:১৬)
                 </span>
                 <span className="text-[11px] font-mono text-gray-400">
