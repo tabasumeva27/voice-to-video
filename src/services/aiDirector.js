@@ -160,6 +160,7 @@ export async function generateScenesWithGemini(transcriptText, apiKey, driveHook
     return parseTranscriptRuleBased(transcriptText, 0, driveHookUrl);
   }
 
+  const cleanKey = apiKey.trim();
   const prompt = `You are an expert 9:16 documentary reel director (like Vox, Abdullah, Johnny Harris).
 Analyze this Bengali narration script about economy/garments workers/inflation/wages:
 """
@@ -178,7 +179,7 @@ No markdown fences, just JSON.`;
 
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey.trim()}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${cleanKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
