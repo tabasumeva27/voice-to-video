@@ -20,7 +20,7 @@ export default function App() {
   const [isAutoSaving, setIsAutoSaving] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
-  const [audioUrl, setAudioUrl] = useState(null); // Actual Voice Audio URL for playback
+  const [audioUrl, setAudioUrl] = useState(null);
 
   const debounceTimerRef = useRef(null);
 
@@ -62,11 +62,13 @@ export default function App() {
       saveProject(updatedProject);
       setProjectsList(getProjectsList());
       setIsAutoSaving(false);
-    }, 600);
+    }, 500);
   };
 
-  // Generate 4-Layer Dynamic Scenes from Narration
-  const handleGenerateScenes = async (transcript, overrideScenes = null) => {
+  // Generate Brand New Scenes from Narration
+  const handleGenerateScenes = async (transcript, overrideScenes = null, exactDuration = 0) => {
+    if (!transcript || !transcript.trim()) return;
+
     if (overrideScenes) {
       const updated = {
         ...project,
@@ -83,7 +85,7 @@ export default function App() {
 
     try {
       let scenes;
-      if (settings?.geminiApiKey) {
+      if (settings?.geminiApiKey && settings.geminiApiKey.trim().length > 10) {
         scenes = await generateScenesWithGemini(
           transcript,
           settings.geminiApiKey,
@@ -92,9 +94,21 @@ export default function App() {
       } else {
         scenes = parseTranscriptRuleBased(
           transcript,
-          0,
+          exactDuration,
           project.driveHookUrl || settings.driveFolderUrl
         );
+      }
+
+      // If exact audio duration is known, scale scene timestamps proportionally
+      if (exactDuration > 0 && scenes.length > 0) {
+        const avgD = exactDuration / scenes.length;
+        let c = 0;
+        scenes = scenes.map(s => {
+          const start = Math.round(c * 10) / 10;
+          const end = Math.round((c + avgD) * 10) / 10;
+          c = end;
+          return { ...s, startTime: start, endTime: end, duration: Math.round(avgD * 10) / 10 };
+        });
       }
 
       const updated = {
@@ -105,7 +119,10 @@ export default function App() {
       triggerAutoSave(updated);
       setActiveSceneIndex(0);
     } catch (e) {
-      console.error('Scene generation failed', e);
+      console.error('Scene generation failed, using rule engine', e);
+      const fallbackScenes = parseTranscriptRuleBased(transcript, exactDuration, project?.driveHookUrl);
+      triggerAutoSave({ ...project, transcript, scenes: fallbackScenes });
+      setActiveSceneIndex(0);
     } finally {
       setIsGenerating(false);
     }
@@ -132,13 +149,13 @@ export default function App() {
       endTime,
       duration: 5,
       visualType: 'avatar_explainer',
-      motionType: 'particles',
+      motionType: 'counter',
       caption: 'নতুন অধ্যায়ের ক্যাপশন...',
       headline: 'নতুন বিষয়বস্তু',
       highlightText: 'মূল পয়েন্ট',
       soundFx: 'whoosh',
       zoomScale: 1.1,
-      imageUrl: PRESET_VISUALS.ocean
+      imageUrl: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=800&q=80'
     };
 
     triggerAutoSave({ ...project, scenes: [...currentScenes, newScene] });
@@ -172,7 +189,6 @@ export default function App() {
     setActiveSceneIndex(toIndex);
   };
 
-  // Project Switch / Create / Delete
   const handleSelectProject = (projectId) => {
     const p = loadProject(projectId);
     if (p) {
@@ -203,7 +219,6 @@ export default function App() {
     }
   };
 
-  // Update voice audio URL when uploaded/recorded
   const handleSetAudioUrl = (url) => {
     setAudioUrl(url);
     if (project) {
