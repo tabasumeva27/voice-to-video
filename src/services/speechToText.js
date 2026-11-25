@@ -1,5 +1,29 @@
 // Speech-to-Text Service: Auto-transcribes uploaded audio using Google Gemini API
-// Handles v1beta and v1 stable endpoints with auto-fallbacks
+// Uses current Gemini 2.5 / 2.0 Flash models with automatic fallback
+
+const GEMINI_AUDIO_MODELS = [
+  'gemini-2.5-flash',
+  'gemini-2.0-flash',
+  'gemini-2.5-flash-lite',
+  'gemini-1.5-flash-latest'
+];
+
+function resolveAudioMimeType(file) {
+  if (file.type && file.type !== 'application/octet-stream') {
+    return file.type;
+  }
+  const ext = (file.name || '').split('.').pop()?.toLowerCase();
+  const map = {
+    mp3: 'audio/mp3',
+    wav: 'audio/wav',
+    m4a: 'audio/mp4',
+    aac: 'audio/aac',
+    ogg: 'audio/ogg',
+    webm: 'audio/webm',
+    flac: 'audio/flac'
+  };
+  return map[ext] || 'audio/mp3';
+}
 
 export async function transcribeAudio(audioFile, geminiApiKey) {
   if (!audioFile) {
@@ -9,29 +33,17 @@ export async function transcribeAudio(audioFile, geminiApiKey) {
   if (!geminiApiKey || geminiApiKey.trim().length < 8) {
     return {
       transcript: '',
-      error: 'দয়া করে Settings থেকে আপনার Google Gemini API Key দিন।'
+      error: 'দয়া করে উপরের Settings থেকে আপনার Google Gemini API Key দিন।'
     };
   }
 
   try {
     const base64Data = await fileToBase64(audioFile);
-    let mimeType = audioFile.type || 'audio/mp3';
-    if (!mimeType || mimeType === 'application/octet-stream') {
-      mimeType = 'audio/mp3';
-    }
-
-    // List of models to try in order of speed and stability
-    const modelsToTry = [
-      'gemini-1.5-flash-latest',
-      'gemini-1.5-flash',
-      'gemini-1.5-pro-latest',
-      'gemini-pro'
-    ];
-
+    const mimeType = resolveAudioMimeType(audioFile);
     const cleanKey = geminiApiKey.trim();
     let lastError = null;
 
-    for (const model of modelsToTry) {
+    for (const model of GEMINI_AUDIO_MODELS) {
       try {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${cleanKey}`;
         const res = await fetch(url, {
@@ -48,7 +60,7 @@ export async function transcribeAudio(audioFile, geminiApiKey) {
                     }
                   },
                   {
-                    text: `তুমি একজন দক্ষ বাংলা স্পিচ ট্রান্সক্রাইবার। এই অডিওর কথাগুলো শুনে হুবহু শুদ্ধ বাংলায় প্রতিটি বাক্য দাঁড়ি (।) দিয়ে ট্রান্সক্রাইব করো। অন্য কোনো ভূমিকা বা মন্তব্য লিখবে না।`
+                    text: `তুমি একজন দক্ষ বাংলা স্পিচ ট্রান্সক্রাইবার। এই অডিওর কথাগুলো শুনে হুবহু শুদ্ধ বাংলায় প্রতিটি বাক্য দাঁড়ি (।) দিয়ে আলাদা করে ট্রান্সক্রাইব করো। কোনো ভূমিকা, ব্যাখ্যা বা ইংরেজি অনুবাদ লিখবে না — শুধুমাত্র অডিওতে যা বলা হয়েছে তা লিখবে।`
                   }
                 ]
               }
@@ -64,7 +76,7 @@ export async function transcribeAudio(audioFile, geminiApiKey) {
           const data = await res.json();
           const text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
           if (text) {
-            return { transcript: text, error: null };
+            return { transcript: text, error: null, model };
           }
         } else {
           const errData = await res.json().catch(() => ({}));
@@ -75,9 +87,9 @@ export async function transcribeAudio(audioFile, geminiApiKey) {
       }
     }
 
-    return { 
-      transcript: '', 
-      error: `Gemini এরর: ${lastError || 'মডেল পাওয়া যায়নি'}। আপনি সরাসরি ডানদিকের বক্সে স্ক্রিপ্ট পেস্ট করে 'সিন তৈরি করুন' চাপতে পারেন।` 
+    return {
+      transcript: '',
+      error: `Gemini এরর: ${lastError || 'মডেল পাওয়া যায়নি'}। আপনি ডানদিকের বক্সে স্ক্রিপ্ট পেস্ট করে 'এই স্ক্রিপ্ট অনুযায়ী নতুন সিন তৈরি করুন' চাপতে পারেন।`
     };
   } catch (err) {
     console.error('Audio transcription error:', err);
@@ -90,8 +102,7 @@ function fileToBase64(file) {
     const reader = new FileReader();
     reader.onload = () => {
       const res = reader.result;
-      const base64 = res.split(',')[1];
-      resolve(base64);
+      resolve(res.split(',')[1]);
     };
     reader.onerror = (e) => reject(e);
     reader.readAsDataURL(file);

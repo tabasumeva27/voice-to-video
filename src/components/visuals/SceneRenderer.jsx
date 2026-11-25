@@ -6,21 +6,15 @@ import StockVisual from './StockVisual';
 
 /**
  * Universal Scene Renderer Dispatcher
- * Automatically selects the appropriate visual layer based on scene.visualType:
- * - avatar_explainer: Animated SVG talking character
- * - procedural_motion: Sonar, Charts, Counters, Waves, Heartbeat
- * - paper_collage: Newspaper report with marker highlights
- * - stock_visual: Dynamic contextual image
- * - personal_hook: Drive video or avatar fallback
+ * Passes sceneIndex and exact progress for micro-interactions and diverse shot selections.
  */
-export default function SceneRenderer({ scene, isPlaying = false, progress = 0 }) {
+export default function SceneRenderer({ scene, sceneIndex = 0, isPlaying = false, progress = 0 }) {
   if (!scene) return null;
 
   const visualType = scene.visualType || scene.type || 'stock_visual';
 
   // 1. Personal Face Hook or Avatar Explainer
   if (visualType === 'personal_hook' || visualType === 'avatar_explainer' || visualType === 'personal_face') {
-    // If user provided driveHookUrl / custom video, we can render video or image; else animated avatar
     if (scene.driveVideoUrl) {
       return (
         <video
@@ -42,20 +36,21 @@ export default function SceneRenderer({ scene, isPlaying = false, progress = 0 }
     );
   }
 
-  // 2. Procedural Code Motions (Sonar waves, Charts, Counters, Heartbeat)
+  // 2. Procedural Code Motions (Odometer counter, 3D Charts, Sonar)
   if (visualType === 'procedural_motion') {
     return (
       <ProceduralMotion
-        motionType={scene.motionType || 'sonar'}
+        motionType={scene.motionType || 'counter'}
         headline={scene.headline}
         highlightText={scene.highlightText}
+        metrics={scene.metrics}
         isPlaying={isPlaying}
         progress={progress}
       />
     );
   }
 
-  // 3. Paper Collage / Newspaper Highlight
+  // 3. High-End Full-Frame Paper Collage with Animated Marker
   if (visualType === 'paper_collage' || visualType === 'news_headline') {
     return (
       <PaperCollage
@@ -63,16 +58,18 @@ export default function SceneRenderer({ scene, isPlaying = false, progress = 0 }
         highlightText={scene.highlightText}
         caption={scene.caption}
         isPlaying={isPlaying}
+        progress={progress}
       />
     );
   }
 
-  // 4. Default: Dynamic Contextual Stock Visual with Ken Burns
+  // 4. Dynamic Contextual Stock Visual with Strict Shot Variety
   return (
     <StockVisual
       imageUrl={scene.imageUrl}
       query={scene.searchQuery || scene.highlightText}
       caption={scene.caption}
+      sceneIndex={sceneIndex}
       isPlaying={isPlaying}
       zoomScale={scene.zoomScale || 1.15}
     />

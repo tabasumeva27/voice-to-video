@@ -135,7 +135,7 @@ export default function ReelPreviewPlayer({ scenes, currentSceneIndex, onSceneCh
     );
   }
 
-  // Calculate word-level highlighted kinetic captions
+  // Calculate word-level kinetic captions
   const words = (activeScene.caption || '').split(/\s+/).filter(Boolean);
   const sceneDuration = activeScene.duration || (activeScene.endTime - activeScene.startTime) || 5;
   const sceneStartTime = accumulatedTime - sceneDuration;
@@ -155,59 +155,59 @@ export default function ReelPreviewPlayer({ scenes, currentSceneIndex, onSceneCh
       )}
 
       {/* 9:16 Mobile Phone Frame */}
-      <div className="relative w-full aspect-[9/16] max-w-[340px] bg-black rounded-[36px] overflow-hidden shadow-2xl border-4 border-gray-800/90 select-none group">
+      <div className="relative w-full aspect-[9/16] max-w-[340px] bg-black rounded-[36px] overflow-hidden shadow-[0_25px_60px_rgba(0,0,0,0.95)] border-4 border-slate-800 select-none group">
         
-        {/* Dynamic 4-Layer Visual Engine: Renders Avatar, Sonar, Paper Collage or Stock Visual */}
+        {/* Dynamic 4-Layer Visual Engine */}
         <div className="absolute inset-0 overflow-hidden">
           <SceneRenderer
             scene={activeScene}
+            sceneIndex={activeIndex}
             isPlaying={isPlaying}
             progress={sceneProgress}
           />
         </div>
 
         {/* Paper texture and subtle film grain overlay */}
-        <div className="absolute inset-0 paper-texture opacity-25 pointer-events-none"></div>
+        <div className="absolute inset-0 paper-texture opacity-20 pointer-events-none"></div>
 
         {/* Top Header Information in Reel */}
         <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-20 pointer-events-none">
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-[10px] text-white">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/70 backdrop-blur-md border border-white/10 text-[10px] text-white">
             <span className="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
-            <span className="font-bengali font-semibold">HD REEL</span>
+            <span className="font-bengali font-bold tracking-wide">HD 1080p</span>
           </div>
 
-          <div className="px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-[10px] text-gray-300 font-mono">
+          <div className="px-2 py-0.5 rounded-full bg-black/70 backdrop-blur-md text-[10px] text-slate-300 font-mono">
             {formatTime(currentTime)} / {formatTime(totalDuration)}
           </div>
         </div>
 
-        {/* Big Bold Kinetic Captions (Word-by-word Glowing Yellow Animation) */}
-        <div className="absolute bottom-16 inset-x-3 z-30 text-center pointer-events-none">
-          <div className="bg-black/85 backdrop-blur-md rounded-2xl p-3.5 border border-white/15 shadow-[0_10px_30px_rgba(0,0,0,0.8)]">
-            <p className="text-base sm:text-lg font-black font-bengali leading-relaxed text-white tracking-wide">
-              {words.map((word, wIdx) => {
-                const isCurrentWord = wIdx === activeWordIndex;
-                return (
-                  <span
-                    key={wIdx}
-                    className={`inline-block mx-1 transition-all duration-150 ${
-                      isCurrentWord
-                        ? 'text-yellow-300 scale-125 font-black drop-shadow-[0_0_15px_rgba(253,224,71,0.9)] underline decoration-amber-400 decoration-2'
-                        : 'text-gray-300 opacity-90'
-                    }`}
-                  >
-                    {word}
-                  </span>
-                );
-              })}
-            </p>
-          </div>
+        {/* Ultra-Bold Kinetic Captions (World-Class YouTube Shorts / Reels Style) */}
+        {/* Placed at the golden-ratio lower third with no bulky container */}
+        <div className="absolute bottom-16 inset-x-3 z-30 text-center pointer-events-none px-2">
+          <p className="text-lg sm:text-xl font-black font-bengali leading-relaxed text-white drop-shadow-[0_4px_16px_rgba(0,0,0,1)] tracking-wide">
+            {words.map((word, wIdx) => {
+              const isCurrentWord = wIdx === activeWordIndex;
+              return (
+                <span
+                  key={wIdx}
+                  className={`inline-block mx-1 transition-all duration-150 ${
+                    isCurrentWord
+                      ? 'text-yellow-300 scale-125 font-black drop-shadow-[0_0_20px_rgba(253,224,71,1)] underline decoration-amber-400 decoration-4 -translate-y-1'
+                      : 'text-slate-100 opacity-90'
+                  }`}
+                >
+                  {word}
+                </span>
+              );
+            })}
+          </p>
         </div>
 
         {/* Timeline Progress Bar at bottom of reel */}
         <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-white/20 z-30">
           <div
-            className="h-full bg-gradient-to-r from-indigo-500 via-pink-500 to-amber-400 transition-all duration-100"
+            className="h-full bg-gradient-to-r from-indigo-500 via-pink-500 to-amber-400 transition-all duration-100 shadow-[0_0_8px_rgba(251,191,36,0.8)]"
             style={{ width: `${(currentTime / totalDuration) * 100}%` }}
           />
         </div>
@@ -215,7 +215,7 @@ export default function ReelPreviewPlayer({ scenes, currentSceneIndex, onSceneCh
         {/* Click to Play/Pause overlay */}
         <div
           onClick={togglePlay}
-          className="absolute inset-0 z-10 flex items-center justify-center cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity bg-black/20"
+          className="absolute inset-0 z-10 flex items-center justify-center cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity bg-black/25"
         >
           <div className="w-14 h-14 rounded-full bg-white/25 backdrop-blur-md flex items-center justify-center text-white border border-white/30 shadow-xl">
             {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6 ml-1" />}
@@ -227,7 +227,7 @@ export default function ReelPreviewPlayer({ scenes, currentSceneIndex, onSceneCh
       <div className="mt-4 flex items-center gap-3 bg-gray-900 border border-gray-800 px-4 py-2 rounded-2xl shadow-lg">
         <button
           onClick={togglePlay}
-          className="w-9 h-9 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center transition"
+          className="w-9 h-9 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center transition shadow-md shadow-indigo-600/30"
           title={isPlaying ? 'বিরতি (Pause)' : 'চালান (Play)'}
         >
           {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}

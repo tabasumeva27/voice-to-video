@@ -26,6 +26,17 @@ export default function AudioUploader({
   const timerRef = useRef(null);
   const fileInputRef = useRef(null);
 
+  const getAudioDuration = (url) => {
+    return new Promise((resolve) => {
+      const audio = new Audio(url);
+      audio.onloadedmetadata = () => {
+        const d = audio.duration && !isNaN(audio.duration) && isFinite(audio.duration) ? audio.duration : 0;
+        resolve(d);
+      };
+      audio.onerror = () => resolve(0);
+    });
+  };
+
   // File Upload Handler with Audio Duration detection
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -36,26 +47,23 @@ export default function AudioUploader({
     if (onSetAudioUrl) onSetAudioUrl(audioBlobUrl);
     setAudioFileName(file.name);
 
-    // Measure exact audio duration
-    const tempAudio = new Audio(audioBlobUrl);
-    tempAudio.onloadedmetadata = () => {
-      if (tempAudio.duration && !isNaN(tempAudio.duration)) {
-        setAudioDuration(tempAudio.duration);
-      }
-    };
-
     setTranscribeNotice('🎙️ আপনার ভয়েস পড়া হচ্ছে... অনুগ্রহ করে কয়েক সেকেন্ড অপেক্ষা করুন');
     setIsTranscribing(true);
 
     const settings = getSettings();
-    const result = await transcribeAudio(file, settings?.geminiApiKey);
+    const [detectedDuration, result] = await Promise.all([
+      getAudioDuration(audioBlobUrl),
+      transcribeAudio(file, settings?.geminiApiKey)
+    ]);
+
+    if (detectedDuration > 0) setAudioDuration(detectedDuration);
 
     setIsTranscribing(false);
     if (result.transcript) {
-      setTranscribeNotice('✅ ভয়েস সফলভাবে ট্রান্সক্রাইব হয়েছে! সিন তৈরি হয়েছে।');
+      setTranscribeNotice('✅ ভয়েস সফলভাবে ট্রান্সক্রাইব হয়েছে! সিন তৈরি হচ্ছে...');
       onUpdateTranscript(result.transcript);
       // Immediately generate brand new scenes with the exact audio duration!
-      onGenerateScenes(result.transcript, null, tempAudio.duration || 0);
+      onGenerateScenes(result.transcript, null, detectedDuration);
     } else {
       setTranscribeNotice(result.error || 'অডিও সনাক্ত হয়েছে। প্রয়োজনে নিচের বক্সে স্ক্রিপ্ট পেস্ট করে বাটনে চাপুন।');
     }
